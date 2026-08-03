@@ -1,7 +1,7 @@
 [project]
 name = "fraud-radar"
 version = "0.1.0"
-description = "Add your description here"
+description = "Real-time fraud detection pipeline: Isolation Forest scoring over a Kafka stream, persisted to Postgres."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -17,4 +17,10 @@ dev = [
     "ipykernel>=7.3.0",
     "pytest>=9.1.1",
     "ruff>=0.15.20",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning:joblib.*",
 ]
