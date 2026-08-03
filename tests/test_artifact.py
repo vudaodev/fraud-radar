@@ -4,9 +4,11 @@ Runs as a fresh process (no training context), exactly like the API does. Proves
 the fitted pipeline survives serialisation and scores a raw transaction:
   - the artifact loads standalone (secs_to_hour_of_day resolves by reference),
   - raw Time/Amount/V1-V28 go in and a finite anomaly score comes out,
-  - the transforms travel with the artifact (raw input, not pre-transformed).
+  - the transforms travel with the artifact (raw input, not pre-transformed),
+  - the threshold is applied in the right direction (common/anomaly.py).
 
-Uses no data files, so it runs in CI where creditcard.csv is absent.
+Uses only committed fixtures — synthetic rows plus data/test_sample.csv — so it
+runs in CI, where the gitignored creditcard.csv is absent.
 
 How to run
 ----------
@@ -29,8 +31,8 @@ must be on the path. This is configured in pyproject.toml:
     pythonpath = ["."]
 
 Prerequisite: the artifact must exist at model/artifacts/isolation_forest.pkl.
-If it is missing, run `python model/train.py` (or re-run notebook 02) first;
-the load fixture will otherwise fail with a clear "run train.py" message.
+If it is missing, run `uv run python -m model.train` (or re-run notebook 02)
+first; the load fixture will otherwise fail with a clear "run train.py" message.
 
 Common failure: `ModuleNotFoundError: No module named 'common'` means the repo
 root is not on the path — use `uv run`, or add the pythonpath config above.
@@ -43,12 +45,16 @@ import pandas as pd
 import pytest
 import joblib
 
-# Importing this here (even though the pipeline calls it internally) documents
-# the dependency and fails loudly if the shared module goes missing.
+# The scoring helpers are imported rather than reimplemented, so these tests
+# exercise the exact code the API will call. Importing the transform (even though
+# the pipeline calls it internally) documents the dependency and fails loudly if
+# the shared module goes missing.
+from common.anomaly import FRAUD_THRESHOLD, anomaly_scores, flagged
 from common.transforms import secs_to_hour_of_day  # noqa: F401
 
-ARTIFACT_PATH = Path(__file__).resolve().parent.parent / "model" / "artifacts" / "isolation_forest.pkl"
-THRESHOLD = -0.12175  # locked operating point; see 02_train_and_threshold.ipynb
+REPO_ROOT = Path(__file__).resolve().parent.parent
+ARTIFACT_PATH = REPO_ROOT / "model" / "artifacts" / "isolation_forest.pkl"
+SAMPLE_PATH = REPO_ROOT / "data" / "test_sample.csv"
 
 RAW_COLUMNS = [f"V{i}" for i in range(1, 29)] + ["Time", "Amount"]
 
@@ -97,6 +103,43 @@ def test_accepts_raw_columns_only(model):
 
 def test_threshold_decision(model):
     """The threshold produces a boolean flag decision without error."""
-    score = model.decision_function(_raw_row())[0]
-    flagged = bool(score < THRESHOLD)
-    assert isinstance(flagged, bool)
+    decision = flagged(anomaly_scores(model, _raw_row()))
+    assert decision.shape == (1,)
+    assert isinstance(bool(decision[0]), bool)
+
+
+def test_threshold_flags_an_anomalous_row(model):
+    """The comparison direction is right way round.
+
+    A wildly out-of-distribution row must flag while an ordinary one must not.
+    Inverting the comparison fails this, which the isinstance check above cannot
+    catch on its own. The V values below exaggerate the directions real fraud
+    tends to move in; an all-zero row sits at the centre of the PCA space and is
+    by construction the least anomalous input available.
+    """
+    ordinary = anomaly_scores(model, _raw_row())[0]
+    anomalous = anomaly_scores(
+        model,
+        _raw_row(V1=-30.0, V3=-30.0, V4=12.0, V10=-20.0, V12=-19.0, V14=-19.0, V17=-25.0, Amount=9999.99),
+    )[0]
+
+    assert anomalous > ordinary
+    assert bool(anomalous >= FRAUD_THRESHOLD)
+    assert not bool(ordinary >= FRAUD_THRESHOLD)
+
+
+def test_flags_most_known_fraud_in_the_sample():
+    """End-to-end sanity on real labelled rows, not synthetic ones.
+
+    The committed fixture holds 20 known frauds. At the locked threshold the
+    model should catch most of them, consistent with its ~74% recall. This is the
+    check that would have caught the inverted comparison immediately: with the
+    sign flipped it catches none.
+    """
+    sample = pd.read_csv(SAMPLE_PATH)
+    fraud = sample.loc[sample["Class"] == 1, RAW_COLUMNS]
+    assert len(fraud) == 20
+
+    model = joblib.load(ARTIFACT_PATH)
+    caught = int(flagged(anomaly_scores(model, fraud)).sum())
+    assert caught >= 12, f"only {caught} of 20 known frauds flagged — check the threshold direction"
