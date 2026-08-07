@@ -24,7 +24,10 @@ def sample_environment(tmp_path, monkeypatch):
     source = pd.DataFrame(
         {
             "Time": [index // 2 for index in range(total_rows)],
-            **{f"V{i}": [float(index) for index in range(total_rows)] for i in range(1, 29)},
+            **{
+                f"V{i}": [float(index) for index in range(total_rows)]
+                for i in range(1, 29)
+            },
             "Amount": [float(index) / 10 for index in range(total_rows)],
             "Class": [0] * legitimate_rows + [1] * fraud_rows,
         }

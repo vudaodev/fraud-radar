@@ -120,7 +120,16 @@ def test_threshold_flags_an_anomalous_row(model):
     ordinary = anomaly_scores(model, _raw_row())[0]
     anomalous = anomaly_scores(
         model,
-        _raw_row(V1=-30.0, V3=-30.0, V4=12.0, V10=-20.0, V12=-19.0, V14=-19.0, V17=-25.0, Amount=9999.99),
+        _raw_row(
+            V1=-30.0,
+            V3=-30.0,
+            V4=12.0,
+            V10=-20.0,
+            V12=-19.0,
+            V14=-19.0,
+            V17=-25.0,
+            Amount=9999.99,
+        ),
     )[0]
 
     assert anomalous > ordinary
@@ -142,4 +151,6 @@ def test_flags_most_known_fraud_in_the_sample():
 
     model = joblib.load(ARTIFACT_PATH)
     caught = int(flagged(anomaly_scores(model, fraud)).sum())
-    assert caught >= 12, f"only {caught} of 20 known frauds flagged — check the threshold direction"
+    assert caught >= 12, (
+        f"only {caught} of 20 known frauds flagged — check the threshold direction"
+    )
