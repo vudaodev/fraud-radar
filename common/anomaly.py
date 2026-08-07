@@ -13,9 +13,6 @@ FRAUD_THRESHOLD lives in ANOMALY-SCORE space (the negated one). Comparing it
 against a raw decision_function value inverts the rule and flags almost nothing:
 on the held-out split that mistake flags 2 transactions instead of 816 and
 catches 0 of 98 frauds. Always go through anomaly_scores() first.
-
-structure.md plans a FRAUD_THRESHOLD env var for the API; the constant below is
-the default that overrides, not a competing source of truth.
 """
 
 FRAUD_THRESHOLD = -0.1218
