@@ -1,26 +1,47 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "fraud-radar"
 version = "0.1.0"
 description = "Real-time fraud detection pipeline: Isolation Forest scoring over a Kafka stream, persisted to Postgres."
 readme = "README.md"
 requires-python = ">=3.13"
+# Serving path only: what api/ and model/train.py import directly. Kept lean so
+# `uv sync --no-group notebooks --no-group dev` produces a deployable env.
 dependencies = [
-    "jupyter>=1.1.1",
-    "matplotlib>=3.11.0",
+    "fastapi[standard]>=0.141.1",
+    "joblib>=1.5.3",
+    "numpy>=2.5.1",
     "pandas>=3.0.3",
     "scikit-learn>=1.9.0",
-    "seaborn>=0.13.2",
 ]
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.3.0",
     "pytest>=9.1.1",
     "ruff>=0.15.20",
 ]
+# Only needed to run model/notebooks/. Both groups are in the default sync set,
+# so a plain `uv sync` still installs everything.
+notebooks = [
+    "ipykernel>=7.3.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.11.0",
+    "seaborn>=0.13.2",
+]
+
+[tool.uv]
+# uv syncs only the `dev` group by default; naming both here keeps a plain
+# `uv sync` installing everything, as before the split.
+default-groups = ["dev", "notebooks"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 filterwarnings = [
     "ignore::DeprecationWarning:joblib.*",
 ]
+
+[tool.setuptools]
+packages = ["common", "api"]
