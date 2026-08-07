@@ -9,6 +9,9 @@ learning/
 .venv/
 __pycache__/
 *.py[oc]
+*.egg-info/
+build/
+dist/
 
 # Tooling
 .pytest_cache/
@@ -17,3 +20,6 @@ __pycache__/
 
 # Secrets
 .env
+
+# AI
+.claude
