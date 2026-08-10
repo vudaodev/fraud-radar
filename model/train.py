@@ -88,7 +88,9 @@ def build_pipeline() -> Pipeline:
     """Build the unfitted preprocessing + IsolationForest pipeline."""
     # Named module-level functions, not lambdas: the pickle stores them by
     # reference and a lambda has no importable path to resolve at load time.
-    time_transformer = FunctionTransformer(secs_to_hour_of_day, feature_names_out="one-to-one")
+    time_transformer = FunctionTransformer(
+        secs_to_hour_of_day, feature_names_out="one-to-one"
+    )
     amount_transformer = FunctionTransformer(np.log1p, feature_names_out="one-to-one")
 
     column_transformations = ColumnTransformer(
@@ -115,7 +117,9 @@ def build_pipeline() -> Pipeline:
     )
 
 
-def evaluate(pipeline: Pipeline, X_test: pd.DataFrame, y_test: pd.Series) -> dict[str, float]:
+def evaluate(
+    pipeline: Pipeline, X_test: pd.DataFrame, y_test: pd.Series
+) -> dict[str, float]:
     """Score the held-out set and return ranking metrics plus metrics at the threshold."""
     scores = anomaly_scores(pipeline, X_test)
     flags = flagged(scores)

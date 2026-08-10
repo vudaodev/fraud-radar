@@ -26,7 +26,9 @@ def make_sample(mode: str) -> Path:
         config = CONFIGS[mode]
     except KeyError:
         valid_modes = ", ".join(CONFIGS)
-        raise ValueError(f"Unknown mode {mode!r}. Expected one of: {valid_modes}.") from None
+        raise ValueError(
+            f"Unknown mode {mode!r}. Expected one of: {valid_modes}."
+        ) from None
 
     if not DATA_PATH.is_file():
         raise FileNotFoundError(f"Source data not found: {DATA_PATH}")
@@ -70,7 +72,9 @@ def make_sample(mode: str) -> Path:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for sample generation."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=CONFIGS, required=True, help="Sample profile to generate.")
+    parser.add_argument(
+        "--mode", choices=CONFIGS, required=True, help="Sample profile to generate."
+    )
     return parser.parse_args()
 
 
