@@ -1,17 +1,18 @@
-'''
+"""
 TestClient hits /score with a valid body -> 200 + score
 TestClient hits /score with a malformed body -> 422
 No running server needed
-'''
+"""
 
 from fastapi.testclient import TestClient
 import pytest
 from api.main import app
 
+
 @pytest.fixture
 def valid_payload():
     """
-    A valid payload that we will use for the tests. 
+    A valid payload that we will use for the tests.
     Function scoped on purpose, so it can be adapted for different tests.
     """
     return {
@@ -44,21 +45,21 @@ def valid_payload():
         "V25": 0.386337323495895,
         "V26": 0.522438449202614,
         "V27": -1.41660373652915,
-        "V28": -0.488307035713995
+        "V28": -0.488307035713995,
     }
+
 
 def test_api_valid_body(valid_payload):
     with TestClient(app) as client:
-        response = client.post("/score", 
-                            json = valid_payload)
+        response = client.post("/score", json=valid_payload)
         assert response.status_code == 200
         assert response.json()["flagged"] is True
         assert isinstance(response.json()["score"], float)
+
 
 def test_api_malformed_body(valid_payload):
     malformed_payload = valid_payload
     malformed_payload["Time"] = "Hello"
     with TestClient(app) as client:
-            response = client.post("/score", 
-                                   json = malformed_payload)
-            assert response.status_code == 422
+        response = client.post("/score", json=malformed_payload)
+        assert response.status_code == 422

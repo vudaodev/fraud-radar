@@ -1,0 +1,26 @@
+permissions:
+    contents: read
+
+name: CI
+on:
+    push:
+        branches: ['**']
+    pull_request:
+        branches: [main]
+concurrency:
+    group: ci-${{github.ref}}
+    cancel-in-progress: true
+jobs:
+    ci:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: astral-sh/setup-uv@v10.0.1
+              with:
+                  version: '0.9.7'
+                  enable-cache: true
+            - run: uv sync --locked --no-group notebooks
+            - run: uv run ruff check .
+            - run: uv run ruff format --check .
+            - run: uv run pytest
+            - run: docker build -f api/Dockerfile .

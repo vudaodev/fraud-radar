@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+        branches: [main]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: heroku-deploy
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        if: github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-latest
+        env:
+            APP: ${{ vars.HEROKU_APP_NAME }}
+            IMAGE: registry.heroku.com/${{ vars.HEROKU_APP_NAME }}/web
+            HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
+            - name: Log in to Heroku
+              run: echo "$HEROKU_API_KEY" | docker login registry.heroku.com -u _ --password-stdin
+            - name: Build Docker Image
+              run: docker build --platform linux/amd64 -f api/Dockerfile -t "$IMAGE" .
+            - name: Push Docker Image
+              run: docker push "$IMAGE"
+            - name: Release Docker Image
+              run: |
+                  IMAGE_ID=$(docker inspect "$IMAGE" --format='{{.Id}}')
+                  curl --fail -sS -X PATCH "https://api.heroku.com/apps/$APP/formation" \
+                  -H "Authorization: Bearer $HEROKU_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  -H "Accept: application/vnd.heroku+json; version=3.docker-releases" \
+                  -d "{\"updates\":[{\"type\":\"web\",\"docker_image\":\"$IMAGE_ID\"}]}"
+            - name: Smoke Test (verify deployment)
+              run: |
+                  WEB_URL=$(curl -sS "https://api.heroku.com/apps/$APP" \
+                  -H "Authorization: Bearer $HEROKU_API_KEY" \
+                  -H "Accept: application/vnd.heroku+json; version=3" | jq -r .web_url)
+                  curl --fail -sS --retry 10 --retry-delay 6 --retry-all- errors "${WEB_URL}health" \
+                    | grep -q '"model_loaded":true'
